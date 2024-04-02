@@ -1,0 +1,9 @@
+package main
+
+import "fmt"
+
+func main() {
+	heart := '\u2665'
+	fmt.Println("Hello, Njuguna", string(heart))
+
+}
