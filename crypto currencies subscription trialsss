@@ -1,0 +1,124 @@
+package main
+
+import (
+    "bufio"
+    "fmt"
+    "os"
+    "strings"
+    "time"
+)
+
+type SubscriptionPlan struct {
+    Name   string
+    Price  float64
+    Period time.Duration
+}
+
+type Subscription struct {
+    UserID     string
+    Email      string
+    Plan       SubscriptionPlan
+    StartDate  time.Time
+    ExpiryDate time.Time
+}
+
+func NewSubscription(userID, email string, plan SubscriptionPlan) Subscription {
+    startDate := time.Now()
+    expiryDate := startDate.Add(plan.Period)
+    return Subscription{
+        UserID:     userID,
+        Email:      email,
+        Plan:       plan,
+        StartDate:  startDate,
+        ExpiryDate: expiryDate,
+    }
+}
+
+func (s *Subscription) IsActive() bool {
+    return time.Now().Before(s.ExpiryDate)
+}
+
+func (s *Subscription) Renew() {
+    s.ExpiryDate = time.Now().Add(s.Plan.Period)
+}
+
+func GetMarketData() map[string]float64 {
+    return map[string]float64{
+        "Bitcoin":  27435.23,
+        "Ethereum": 1825.67,
+        "Ripple":   0.52,
+    }
+}
+
+func main() {
+    monthlyPlan := SubscriptionPlan{Name: "Monthly", Price: 7.99, Period: 30 * 24 * time.Hour}
+    sixMonthPlan := SubscriptionPlan{Name: "Six-Month", Price: 44.99, Period: 180 * 24 * time.Hour}
+    annualPlan := SubscriptionPlan{Name: "Annual", Price: 79.99, Period: 365 * 24 * time.Hour}
+
+    reader := bufio.NewReader(os.Stdin)
+
+    fmt.Print("Enter your user ID: ")
+    userID, _ := reader.ReadString('\n')
+    userID = strings.TrimSpace(userID)
+
+    fmt.Print("Enter your email: ")
+    email, _ := reader.ReadString('\n')
+    email = strings.TrimSpace(email)
+
+    fmt.Println("Choose a subscription plan:")
+    fmt.Println("1: Monthly")
+    fmt.Println("2: Six-Month")
+    fmt.Println("3: Annual")
+    fmt.Print("Enter the number of your choice: ")
+
+    planChoice, _ := reader.ReadString('\n')
+    planChoice = strings.TrimSpace(planChoice)
+
+    var selectedPlan SubscriptionPlan
+    switch planChoice {
+    case "1":
+        selectedPlan = monthlyPlan
+    case "2":
+        selectedPlan = sixMonthPlan
+    case "3":
+        selectedPlan = annualPlan
+    default:
+        fmt.Println("Invalid choice. Exiting.")
+        return
+    }
+
+    subscription := NewSubscription(userID, email, selectedPlan)
+    subscription.Renew()
+
+    dirPath := "./user_data"
+    err := os.MkdirAll(dirPath, os.ModePerm)
+    if err != nil {
+        fmt.Println("Error creating directory:", err)
+        return
+    }
+
+    filePath := fmt.Sprintf("%s/%s.txt", dirPath, subscription.UserID)
+    file, err := os.Create(filePath)
+    if err != nil {
+        fmt.Println("Error creating file:", err)
+        return
+    }
+    defer file.Close()
+
+    file.WriteString(fmt.Sprintf("User ID: %s\n", subscription.UserID))
+    file.WriteString(fmt.Sprintf("Email: %s\n", subscription.Email))
+    file.WriteString(fmt.Sprintf("Plan: %s\n", subscription.Plan.Name))
+    file.WriteString(fmt.Sprintf("Price: $%.2f\n", subscription.Plan.Price))
+    file.WriteString(fmt.Sprintf("Start Date: %s\n", subscription.StartDate.Format(time.RFC3339)))
+    file.WriteString(fmt.Sprintf("Expiry Date: %s\n", subscription.ExpiryDate.Format(time.RFC3339)))
+    file.WriteString(fmt.Sprintf("Active: %t\n", subscription.IsActive()))
+
+    fmt.Printf("User ID: %s, Email: %s, Plan: %s, Price: $%.2f, Active: %t\n",
+        subscription.UserID, subscription.Email, subscription.Plan.Name, subscription.Plan.Price, subscription.IsActive())
+
+    marketData := GetMarketData()
+    fmt.Println("Market Data:")
+    for currency, price := range marketData {
+        fmt.Printf("%s: $%.2f\n", currency, price)
+    }
+}
